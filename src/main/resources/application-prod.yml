@@ -1,0 +1,52 @@
+server:
+  port: 8080
+
+spring:
+  # 数据源配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 务必确保数据库名称为 travel_diary
+    url: jdbc:mysql://localhost:3306/travel_diary?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: travel_diary
+    password: YOUR_DB_PASSWORD  # 请修改为宝塔创建数据库时设置的密码
+    
+  # Redis配置
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: YOUR_REDIS_PASSWORD  # 如果宝塔Redis设置了密码，请填入；没有则留空
+      database: 0
+  
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+# MyBatis-Plus配置
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.travel.diary.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# JWT配置
+jwt:
+  # 请修改为随机生成的长字符串
+  secret: your-production-secret-key-must-be-very-long-and-random-at-least-256-bits
+  expiration: 604800000  # 7天
+
+# 微信小程序配置
+wechat:
+  appid: YOUR_APP_ID      # 请填写你的小程序AppID
+  secret: YOUR_APP_SECRET # 请填写你的小程序AppSecret
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.travel.diary: INFO
+  file:
+    name: logs/travel-diary.log
