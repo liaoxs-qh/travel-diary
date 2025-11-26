@@ -37,3 +37,6 @@ logs/
 
 ### Mac ###
 .DS_Store
+
+### Security ###
+src/main/resources/application-prod.yml
