@@ -27,7 +27,7 @@ public class AuthController {
     @Operation(summary = "微信登录")
     @PostMapping("/wx-login")
     public Result<Map<String, Object>> wxLogin(@RequestBody WxLoginDTO loginDTO) {
-        Map<String, Object> result = authService.wxLogin(loginDTO.getCode());
+        Map<String, Object> result = authService.wxLogin(loginDTO);
         return Result.success(result);
     }
 }

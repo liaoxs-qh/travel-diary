@@ -2,6 +2,7 @@ package com.travel.diary.service.impl;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import com.travel.diary.dto.WxLoginDTO;
 import com.travel.diary.entity.User;
 import com.travel.diary.mapper.UserMapper;
 import com.travel.diary.service.AuthService;
@@ -35,8 +36,10 @@ public class AuthServiceImpl implements AuthService {
     private String appSecret;
 
     @Override
-    public Map<String, Object> wxLogin(String code) {
-        log.info("微信登录，code: {}", code);
+    public Map<String, Object> wxLogin(WxLoginDTO loginDTO) {
+        log.info("微信登录，code: {}, nickName: {}", loginDTO.getCode(), loginDTO.getNickName());
+        
+        String code = loginDTO.getCode();
 
         String openid;
         String unionid = null;
@@ -94,17 +97,48 @@ public class AuthServiceImpl implements AuthService {
             user = new User();
             user.setOpenid(openid);
             user.setUnionid(unionid);
-            user.setNickname("旅行者" + System.currentTimeMillis() % 10000);
-            user.setAvatar("https://api.dicebear.com/7.x/miniavs/svg?seed=" + openid);
+            
+            // 使用前端传来的用户信息，如果没有则使用默认值
+            if (loginDTO.getNickName() != null && !loginDTO.getNickName().isEmpty()) {
+                user.setNickname(loginDTO.getNickName());
+            } else {
+                user.setNickname("旅行者" + System.currentTimeMillis() % 10000);
+            }
+            
+            if (loginDTO.getAvatarUrl() != null && !loginDTO.getAvatarUrl().isEmpty()) {
+                user.setAvatar(loginDTO.getAvatarUrl());
+            } else {
+                user.setAvatar("https://api.dicebear.com/7.x/miniavs/svg?seed=" + openid);
+            }
+            
             user.setCreatedAt(LocalDateTime.now());
             user.setUpdatedAt(LocalDateTime.now());
             userMapper.insert(user);
-            log.info("创建新用户: {}", user.getId());
+            log.info("创建新用户: {}, 昵称: {}", user.getId(), user.getNickname());
         } else {
-            // 更新最后登录时间
+            // 更新用户信息（如果前端传了新信息）
+            boolean needUpdate = false;
+            
+            if (loginDTO.getNickName() != null && !loginDTO.getNickName().isEmpty() 
+                && !loginDTO.getNickName().equals(user.getNickname())) {
+                user.setNickname(loginDTO.getNickName());
+                needUpdate = true;
+            }
+            
+            if (loginDTO.getAvatarUrl() != null && !loginDTO.getAvatarUrl().isEmpty()
+                && !loginDTO.getAvatarUrl().equals(user.getAvatar())) {
+                user.setAvatar(loginDTO.getAvatarUrl());
+                needUpdate = true;
+            }
+            
             user.setUpdatedAt(LocalDateTime.now());
-            userMapper.updateById(user);
-            log.info("用户登录: {}", user.getId());
+            if (needUpdate) {
+                userMapper.updateById(user);
+                log.info("用户登录并更新信息: {}, 昵称: {}", user.getId(), user.getNickname());
+            } else {
+                userMapper.updateById(user);
+                log.info("用户登录: {}", user.getId());
+            }
         }
 
         // 3. 生成 JWT token

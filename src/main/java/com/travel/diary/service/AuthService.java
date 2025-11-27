@@ -1,5 +1,7 @@
 package com.travel.diary.service;
 
+import com.travel.diary.dto.WxLoginDTO;
+
 import java.util.Map;
 
 /**
@@ -9,8 +11,8 @@ public interface AuthService {
     
     /**
      * 微信登录
-     * @param code 微信登录code
+     * @param loginDTO 微信登录信息（包含code和用户信息）
      * @return 登录结果（包含token、userId、userInfo）
      */
-    Map<String, Object> wxLogin(String code);
+    Map<String, Object> wxLogin(WxLoginDTO loginDTO);
 }
