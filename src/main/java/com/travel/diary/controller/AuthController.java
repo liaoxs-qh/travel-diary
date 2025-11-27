@@ -1,6 +1,7 @@
 package com.travel.diary.controller;
 
 import com.travel.diary.common.Result;
+import com.travel.diary.dto.PhoneAuthDTO;
 import com.travel.diary.dto.WxLoginDTO;
 import com.travel.diary.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,5 +30,15 @@ public class AuthController {
     public Result<Map<String, Object>> wxLogin(@RequestBody WxLoginDTO loginDTO) {
         Map<String, Object> result = authService.wxLogin(loginDTO);
         return Result.success(result);
+    }
+
+    /**
+     * 微信手机号授权
+     */
+    @Operation(summary = "微信手机号授权")
+    @PostMapping("/phone-auth")
+    public Result<String> phoneAuth(@RequestBody PhoneAuthDTO phoneAuthDTO) {
+        String phone = authService.getPhoneNumber(phoneAuthDTO);
+        return Result.success(phone);
     }
 }

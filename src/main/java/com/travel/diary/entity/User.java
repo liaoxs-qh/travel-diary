@@ -19,6 +19,7 @@ public class User implements Serializable {
     private String unionid;
     private String nickname;
     private String avatar;
+    private String phone;  // 手机号
     private Integer gender;
     private String bio;
     private String coverImage;

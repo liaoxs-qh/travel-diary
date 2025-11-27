@@ -2,6 +2,7 @@ package com.travel.diary.service.impl;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import com.travel.diary.dto.PhoneAuthDTO;
 import com.travel.diary.dto.WxLoginDTO;
 import com.travel.diary.entity.User;
 import com.travel.diary.mapper.UserMapper;
@@ -41,53 +42,37 @@ public class AuthServiceImpl implements AuthService {
         
         String code = loginDTO.getCode();
 
-        String openid;
-        String unionid = null;
-        
-        // 开发环境：如果AppID未配置，使用模拟登录
-        if ("your_appid".equals(appId) || appId == null || appId.isEmpty()) {
-            log.warn("微信AppID未配置，使用模拟登录");
-            openid = "mock_openid_" + System.currentTimeMillis();
-        } else {
-            // 生产环境：调用微信接口
-            String url = String.format(
-                    "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
-                    appId, appSecret, code
-            );
+        // 调用微信接口获取 openid
+        String url = String.format(
+                "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
+                appId, appSecret, code
+        );
 
-            String response;
-            try {
-                response = webClientBuilder.build()
-                        .get()
-                        .uri(url)
-                        .retrieve()
-                        .bodyToMono(String.class)
-                        .block();
-            } catch (Exception e) {
-                log.error("调用微信接口失败", e);
-                throw new RuntimeException("微信登录失败：网络异常");
-            }
+        String response;
+        try {
+            response = webClientBuilder.build()
+                    .get()
+                    .uri(url)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+        } catch (Exception e) {
+            log.error("调用微信接口失败", e);
+            throw new RuntimeException("微信登录失败：网络异常");
+        }
 
-            log.info("微信接口返回: {}", response);
+        log.info("微信接口返回: {}", response);
 
-            JSONObject jsonObject = JSON.parseObject(response);
-            openid = jsonObject.getString("openid");
-            String sessionKey = jsonObject.getString("session_key");
-            unionid = jsonObject.getString("unionid");
+        JSONObject jsonObject = JSON.parseObject(response);
+        String openid = jsonObject.getString("openid");
+        String sessionKey = jsonObject.getString("session_key");
+        String unionid = jsonObject.getString("unionid");
 
-            if (openid == null) {
-                String errcode = jsonObject.getString("errcode");
-                String errmsg = jsonObject.getString("errmsg");
-                log.error("获取openid失败，errcode: {}, errmsg: {}", errcode, errmsg);
-                
-                // 开发环境：如果是 invalid code 错误，自动降级为模拟登录
-                if ("40029".equals(errcode)) {
-                    log.warn("检测到 invalid code 错误，可能是开发环境，使用模拟登录");
-                    openid = "mock_openid_" + System.currentTimeMillis();
-                } else {
-                    throw new RuntimeException("微信登录失败: " + errmsg);
-                }
-            }
+        if (openid == null) {
+            String errcode = jsonObject.getString("errcode");
+            String errmsg = jsonObject.getString("errmsg");
+            log.error("获取openid失败，errcode: {}, errmsg: {}", errcode, errmsg);
+            throw new RuntimeException("微信登录失败: " + errmsg);
         }
 
         // 2. 查询或创建用户
@@ -157,5 +142,78 @@ public class AuthServiceImpl implements AuthService {
         result.put("userInfo", userInfo);
 
         return result;
+    }
+
+    @Override
+    public String getPhoneNumber(PhoneAuthDTO phoneAuthDTO) {
+        log.info("获取微信手机号，code: {}", phoneAuthDTO.getCode());
+        
+        // 获取 access_token
+        String tokenUrl = String.format(
+                "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=%s&secret=%s",
+                appId, appSecret
+        );
+        
+        String tokenResponse;
+        try {
+            tokenResponse = webClientBuilder.build()
+                    .get()
+                    .uri(tokenUrl)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+        } catch (Exception e) {
+            log.error("获取access_token失败", e);
+            throw new RuntimeException("获取手机号失败：网络异常");
+        }
+        
+        log.info("access_token返回: {}", tokenResponse);
+        JSONObject tokenJson = JSON.parseObject(tokenResponse);
+        String accessToken = tokenJson.getString("access_token");
+        
+        if (accessToken == null) {
+            String errmsg = tokenJson.getString("errmsg");
+            log.error("获取access_token失败: {}", errmsg);
+            throw new RuntimeException("获取手机号失败: " + errmsg);
+        }
+        
+        // 使用 code 获取手机号
+        String phoneUrl = String.format(
+                "https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=%s",
+                accessToken
+        );
+        
+        Map<String, String> requestBody = new HashMap<>();
+        requestBody.put("code", phoneAuthDTO.getCode());
+        
+        String phoneResponse;
+        try {
+            phoneResponse = webClientBuilder.build()
+                    .post()
+                    .uri(phoneUrl)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+        } catch (Exception e) {
+            log.error("获取手机号失败", e);
+            throw new RuntimeException("获取手机号失败：网络异常");
+        }
+        
+        log.info("手机号返回: {}", phoneResponse);
+        JSONObject phoneJson = JSON.parseObject(phoneResponse);
+        
+        if (phoneJson.getInteger("errcode") != 0) {
+            String errmsg = phoneJson.getString("errmsg");
+            log.error("获取手机号失败: {}", errmsg);
+            throw new RuntimeException("获取手机号失败: " + errmsg);
+        }
+        
+        JSONObject phoneInfo = phoneJson.getJSONObject("phone_info");
+        String phoneNumber = phoneInfo.getString("phoneNumber");
+        
+        log.info("成功获取手机号: {}", phoneNumber);
+        return phoneNumber;
     }
 }
