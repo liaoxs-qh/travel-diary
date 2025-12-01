@@ -8,6 +8,7 @@ import com.travel.diary.entity.User;
 import com.travel.diary.mapper.UserMapper;
 import com.travel.diary.service.AuthService;
 import com.travel.diary.util.JwtUtil;
+import com.travel.diary.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,7 +59,8 @@ public class AuthServiceImpl implements AuthService {
                     .block();
         } catch (Exception e) {
             log.error("调用微信接口失败", e);
-            throw new RuntimeException("微信登录失败：网络异常");
+            // 抛出业务异常，前端可以拿到更友好的提示
+            throw new BusinessException(502, "微信登录失败：微信服务暂时不可用，请稍后重试");
         }
 
         log.info("微信接口返回: {}", response);
@@ -69,10 +71,17 @@ public class AuthServiceImpl implements AuthService {
         String unionid = jsonObject.getString("unionid");
 
         if (openid == null) {
-            String errcode = jsonObject.getString("errcode");
+            Integer errcode = jsonObject.getInteger("errcode");
             String errmsg = jsonObject.getString("errmsg");
             log.error("获取openid失败，errcode: {}, errmsg: {}", errcode, errmsg);
-            throw new RuntimeException("微信登录失败: " + errmsg);
+
+            // 针对常见错误码做更清晰的业务提示
+            if (errcode != null && errcode == 40029) {
+                // 微信登录 code 无效（过期 / 已被使用）
+                throw new BusinessException(401, "登录状态已过期，请重新登录");
+            }
+
+            throw new BusinessException("微信登录失败: " + (errmsg != null ? errmsg : "请稍后重试"));
         }
 
         // 2. 查询或创建用户
