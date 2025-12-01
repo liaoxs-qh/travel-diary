@@ -43,11 +43,29 @@ public class AuthServiceImpl implements AuthService {
         
         String code = loginDTO.getCode();
 
+        // 调试信息：打印 appId、打码后的 secret、code 长度和内容
+        String maskedSecret;
+        if (appSecret != null && appSecret.length() > 8) {
+            maskedSecret = appSecret.substring(0, 4) + "****" + appSecret.substring(appSecret.length() - 4);
+        } else {
+            maskedSecret = "****";
+        }
+        int codeLength = code != null ? code.length() : 0;
+        log.info("微信登录调试：appId={}, secret(masked)={}, codeLength={}, code={}",
+                appId, maskedSecret, codeLength, code);
+
         // 调用微信接口获取 openid
         String url = String.format(
                 "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
                 appId, appSecret, code
         );
+
+        // 打印打码后的完整请求 URL，便于排查
+        String safeUrlForLog = String.format(
+                "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
+                appId, maskedSecret, code
+        );
+        log.info("微信 jscode2session 请求URL(已打码)：{}", safeUrlForLog);
 
         String response;
         try {

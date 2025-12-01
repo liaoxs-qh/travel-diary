@@ -23,4 +23,14 @@ public interface AuthService {
      * @return 手机号
      */
     String getPhoneNumber(PhoneAuthDTO phoneAuthDTO);
+
+    /**
+     * 调试用：直接调用微信 jscode2session，用于比对结果
+     * @param code 微信登录 code
+     * @return 微信原始返回字符串
+     */
+    default String debugWxCode(String code) {
+        // 默认实现留空，具体调试由实现类覆盖（当前实现类中未直接使用）
+        throw new UnsupportedOperationException("Not implemented");
+    }
 }
